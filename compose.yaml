@@ -1,8 +1,0 @@
-services:
-  web:
-    image: httpd:alpine
-    container_name: site-compose
-    ports:
-      - "8080:80"
-    volumes:
-      - ./site:/usr/local/apache2/htdocs/
