@@ -1,0 +1,15 @@
+services:
+  mysql-bryan:
+    image: mysql:8.0
+    container_name: mysql-bryan
+    environment:
+      MYSQL_ROOT_PASSWORD: senha-bryan-123
+      MYSQL_DATABASE: loja_bryan
+    ports:
+      - "3306:3306"
+    volumes:
+      - dados-mysql-bryan:/var/lib/mysql
+      - ./script.sql:/scripts/script.sql:ro
+
+volumes:
+  dados-mysql-bryan:
