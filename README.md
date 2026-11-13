@@ -1,22 +1,33 @@
-# Laboratório: Volumes e Docker Compose
+Bryan da silva - My Docker - PArt 3 
+# Laboratório: Orquestração com Docker Compose
 
 **Autor:** Bryan da Silva  
 **GitHub:** [@Bryantheconnor-art](https://github.com/Bryantheconnor-art)
 
-Nesta aula, vamos aprender a compartilhar arquivos do Windows com o contêiner
-usando **Volumes** e a gerenciar serviços de forma organizada com o
-**Docker Compose**.
+Nesta aula, vamos aprender a gerenciar e conectar múltiplos serviços de forma
+organizada usando um único arquivo de configuração com o **Docker Compose**.
 
-Neste laboratório, você vai servir arquivos locais com o Apache usando um
-bind mount e depois repetir a experiência com Docker Compose.
+## Estrutura do repositório
+
+```text
+versão 3/
+├── README.md
+├── comandos.sh
+├── lab-compose/        # Parte 1: servidor web
+│   ├── docker-compose.yml
+│   └── index.html
+├── mysql/              # Parte 2: MySQL
+│   ├── docker-compose.yml
+│   └── script.sql
+└── mariadb/            # Parte 3: MariaDB
+    ├── docker-compose.yml
+    └── script.sql
+```
 
 ## Pré-requisitos
 
 - Docker Desktop instalado e em execução.
 - Git Bash e um editor de código, como o VS Code.
-- Docker Compose disponível pelo comando `docker compose`.
-
-Confira o ambiente:
 
 ```bash
 docker --version
@@ -25,124 +36,134 @@ docker compose version
 
 ---
 
-## Conectando arquivos locais (Volumes)
+## 1. Subindo um projeto web com Docker Compose
 
-Antes de ir para o Docker Compose, vamos entender como colocar um projeto real
-(como um site do GitHub) dentro do Apache sem precisar criar uma imagem nova.
+Em vez de digitar comandos `docker run` longos com várias flags (`-d`, `-p`,
+`-v`, `--name`), definimos toda a configuração do servidor em um arquivo YAML.
 
-### 1. Preparar a pasta do projeto
+### 1.1 Preparar a pasta do projeto
 
-No **Git Bash**, crie uma pasta simples na raiz do disco `C:` e coloque um
-arquivo `index.html` dentro dela:
+O roteiro da aula usa `C:/lab-compose`. Neste repositório, a mesma pasta está
+em [`lab-compose/`](lab-compose/). Para criá-la do zero no Git Bash:
 
 ```bash
-mkdir -p C:/meu-site
-echo '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Meu site</title><h1>Meu Site no Docker!</h1><h2>nome-do-aluno</h2></html>' > C:/meu-site/index.html
+mkdir C:/lab-compose
+cd C:/lab-compose
+echo "<h1>Projeto Web com Docker Compose!</h1>" > index.html
 ```
 
-Troque `nome-do-aluno` pelo seu nome.
+### 1.2 O arquivo `docker-compose.yml`
 
-### 2. Subir o Apache com Volume (`-v`)
-
-Vamos mapear a pasta `C:/meu-site` do Windows para a pasta padrão onde o Apache
-lê os arquivos do site (`/usr/local/apache2/htdocs/`):
-
-```bash
-docker run -d -p 8080:80 --name site-volume -v "C:/meu-site:/usr/local/apache2/htdocs/" httpd:alpine
+```yaml
+services:
+  servidor-web:
+    image: httpd:alpine
+    container_name: apache-compose-bryan
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/usr/local/apache2/htdocs/
 ```
 
-> **Entendendo a flag `-v` (Volume):**
-> * Funciona no formato `"PASTA_DO_WINDOWS:PASTA_DO_CONTAINER"`.
-> * Tudo o que você editar na pasta `C:/meu-site` reflete **instantaneamente**
->   dentro do contêiner.
-> * Esse mapeamento de uma pasta do computador é chamado de **bind mount**.
+> **Entendendo o arquivo:**
+> * `services`: lista de contêineres que fazem parte da aplicação.
+> * `servidor-web`: nome do serviço dentro do Compose.
+> * `image`: imagem utilizada (`httpd:alpine`).
+> * `container_name`: nome fixo do contêiner (personalizado).
+> * `ports`: equivalente à flag `-p 8080:80`.
+> * `volumes`: equivalente à flag `-v`; o `./` aponta para a pasta atual.
 
-Acesse **http://localhost:8080** no navegador.
+### 1.3 Executar e gerenciar
 
-> *Dica:* se a página não atualizar de primeira, aperte `Ctrl + Shift + R`
-> para limpar o cache.
->
-> *Dica:* se o Git Bash converter o caminho e a pasta aparecer vazia no
-> contêiner, rode o mesmo comando com `MSYS_NO_PATHCONV=1` antes de `docker run`.
-
-Para conferir o contêiner e os logs:
+Dentro da pasta `lab-compose`:
 
 ```bash
-docker ps
-docker logs site-volume
-```
-
-### 3. Alterar o conteúdo do site
-
-Abra `C:/meu-site/index.html` no editor de código e faça uma alteração
-visível, como mudar o texto ou a cor do fundo. Salve o arquivo e atualize a
-página no navegador para ver a mudança refletida.
-
-### 4. Limpar o ambiente para o próximo passo
-
-Antes de avançar, remova esse contêiner para liberar a porta `8080`:
-
-```bash
-docker rm -f site-volume
-```
-
-Isso não apaga os arquivos de `C:/meu-site`.
-
----
-
-## Executar o site com Docker Compose
-
-Esta versão inclui um site de exemplo na pasta `site/`. O arquivo
-[`compose.yaml`](compose.yaml) conecta essa pasta ao diretório servido pelo
-Apache. No Git Bash, a partir da pasta `versão 2`, valide e inicie o serviço:
-
-```bash
-docker compose config
+docker compose version
 docker compose up -d
 docker compose ps
-docker compose logs web
+docker compose logs
 ```
 
-Abra **http://localhost:8080**. Edite [`site/index.html`](site/index.html),
-salve e atualize o navegador para ver a mudança sem reconstruir a imagem.
+Acesse **http://localhost:8080** para confirmar que o projeto está no ar.
 
-O Compose usa um caminho relativo (`./site`), então o projeto pode ser movido
-sem alterar o caminho do volume. Para parar e remover os recursos criados pelo
-Compose:
+### 1.4 Derrubar o ambiente
 
 ```bash
 docker compose down
 ```
 
-O comando não remove os arquivos do site. Este laboratório não cria volumes
-nomeados, portanto não é necessário usar `docker compose down -v`.
-
-Se a porta 8080 já estiver ocupada, edite `ports` em `compose.yaml` para
-`"8081:80"` e abra **http://localhost:8081**.
+Faça isso antes de iniciar a próxima parte, para liberar a porta `8080`.
 
 ---
 
-## Exercício: testando o Volume
+## 2. Exercício: MySQL com Docker Compose
 
-1. Baixe um projeto HTML do GitHub e coloque-o em uma pasta local.
-2. Suba um contêiner do Apache mapeando essa pasta (no `docker run` ou em
-   `compose.yaml`).
-3. Acesse o site no navegador.
-4. Faça uma alteração bem visível no site.
-5. Atualize a página no navegador e veja a mudança refletida.
-6. Documente o passo a passo e tire prints da tela como evidência. Lembre-se de
-   sempre personalizar o conteúdo do site e os nomes, como a pasta do projeto e
-   o nome do contêiner.
+Pasta [`mysql/`](mysql/). O arquivo `docker-compose.yml` sobe o MySQL 8.0 com o
+banco `loja_bryan`, a porta `3306` e um volume nomeado para guardar os dados. O
+`script.sql` é montado em `/scripts/script.sql` dentro do contêiner.
+
+```bash
+cd mysql
+docker compose up -d
+docker compose ps
+docker compose logs
+```
+
+Aguarde a mensagem `ready for connections` nos logs. Depois, acesse o banco:
+
+```bash
+MSYS_NO_PATHCONV=1 docker exec -it mysql-bryan sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" loja_bryan'
+```
+
+Dentro do cliente MySQL, você pode digitar os comandos SQL manualmente ou
+executar o script completo (cria a tabela `clientes_bryan`, insere dados e
+consulta):
+
+```bash
+MSYS_NO_PATHCONV=1 docker exec -it mysql-bryan sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < /scripts/script.sql'
+```
+
+Para encerrar:
+
+```bash
+docker compose down       # mantém os dados no volume
+docker compose down -v    # remove também o volume com os dados
+```
 
 ---
 
-## Arquivos
+## 3. Exercício: MariaDB com Docker Compose
 
-- [`README.md`](README.md): instruções do laboratório.
-- [`comandos.sh`](comandos.sh): comandos de referência para executar um por vez no Git Bash.
-- [`compose.yaml`](compose.yaml): configuração do serviço Apache e do bind mount.
-- [`site/index.html`](site/index.html): página local servida pelo Compose.
+Pasta [`mariadb/`](mariadb/). Segue a mesma ideia, usando a imagem
+`mariadb:10.11`, o cliente `mariadb` e a porta `3307` no computador (para não
+conflitar com o MySQL na `3306`). A tabela criada é `produtos_bryan`.
+
+```bash
+cd mariadb
+docker compose up -d
+docker compose ps
+docker compose logs
+
+MSYS_NO_PATHCONV=1 docker exec -it mariadb-bryan sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" loja_bryan'
+MSYS_NO_PATHCONV=1 docker exec -it mariadb-bryan sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" < /scripts/script.sql'
+
+docker compose down
+```
+
+> As senhas dos arquivos `docker-compose.yml` são apenas para este laboratório.
+> Não use senhas fixas em projetos reais.
 
 ---
 
-*Laboratório prático de Docker — Bryan da Silva*
+## Entrega
+
+Reúna tudo em **um único arquivo PDF**, com prints de tela e explicações do
+passo a passo, incluindo:
+
+- o conteúdo de cada `docker-compose.yml`;
+- os comandos SQL utilizados;
+- os resultados das consultas;
+- a página do item 1 aberta no navegador.
+
+Envie o PDF na **Issue** da atividade neste repositório do GitHub, com a label
+`atividade-docker-compose`.
